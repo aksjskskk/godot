@@ -2096,6 +2096,76 @@ void Engine::get_argument_options(const StringName &p_function, int p_idx, List<
 }
 #endif
 
+void Engine::_print_callback(void *p_self, const String &p_string, bool p_error, bool p_rich) {
+	PrintCallbackData *data = static_cast<PrintCallbackData *>(p_self);
+	data->callable.call(p_string, p_error, p_rich);
+}
+
+void Engine::_error_callback(void *p_self, const char *p_func, const char *p_file,
+		int p_line, const char *p_error, const char *p_errorexp,
+		bool p_editor_notify, ErrorHandlerType p_type) {
+	ErrorCallbackData *data = static_cast<ErrorCallbackData *>(p_self);
+	String file = String::utf8(p_file);
+	String error = String::utf8(p_error);
+	String expression = p_errorexp ? String::utf8(p_errorexp) : String();
+	data->callable.call(file, p_line, error, expression, (int)p_type);
+}
+
+void Engine::add_print_handler(const Callable &p_callable) {
+	ERR_FAIL_COND_MSG(!p_callable.is_valid(), "Invalid callable passed to add_print_handler.");
+	PrintCallbackData *data = memnew(PrintCallbackData);
+	data->callable = p_callable;
+	data->handler.printfunc = _print_callback;
+	data->handler.userdata = data;
+	print_callback_list.push_back(data);
+	::add_print_handler(&data->handler);
+}
+
+void Engine::remove_print_handler(const Callable &p_callable) {
+	for (int i = 0; i < print_callback_list.size(); i++) {
+		if (print_callback_list[i]->callable == p_callable) {
+			::remove_print_handler(&print_callback_list[i]->handler);
+			memdelete(print_callback_list[i]);
+			print_callback_list.remove_at(i);
+			return;
+		}
+	}
+	WARN_PRINT("remove_print_handler: callable not found.");
+}
+
+void Engine::add_error_handler(const Callable &p_callable) {
+	ERR_FAIL_COND_MSG(!p_callable.is_valid(), "Invalid callable passed to add_error_handler.");
+	ErrorCallbackData *data = memnew(ErrorCallbackData);
+	data->callable = p_callable;
+	data->handler.errfunc = _error_callback;
+	data->handler.userdata = data;
+	error_callback_list.push_back(data);
+	::add_error_handler(&data->handler);
+}
+
+void Engine::remove_error_handler(const Callable &p_callable) {
+	for (int i = 0; i < error_callback_list.size(); i++) {
+		if (error_callback_list[i]->callable == p_callable) {
+			::remove_error_handler(&error_callback_list[i]->handler);
+			memdelete(error_callback_list[i]);
+			error_callback_list.remove_at(i);
+			return;
+		}
+	}
+	WARN_PRINT("remove_error_handler: callable not found.");
+}
+
+Engine::~Engine() {
+	for (PrintCallbackData *data : print_callback_list) {
+		::remove_print_handler(&data->handler);
+		memdelete(data);
+	}
+	for (ErrorCallbackData *data : error_callback_list) {
+		::remove_error_handler(&data->handler);
+		memdelete(data);
+	}
+}
+
 void Engine::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_physics_ticks_per_second", "physics_ticks_per_second"), &Engine::set_physics_ticks_per_second);
 	ClassDB::bind_method(D_METHOD("get_physics_ticks_per_second"), &Engine::get_physics_ticks_per_second);
@@ -2151,6 +2221,11 @@ void Engine::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_print_error_messages", "enabled"), &Engine::set_print_error_messages);
 	ClassDB::bind_method(D_METHOD("is_printing_error_messages"), &Engine::is_printing_error_messages);
+
+	ClassDB::bind_method(D_METHOD("add_print_handler", "callable"), &Engine::add_print_handler);
+	ClassDB::bind_method(D_METHOD("remove_print_handler", "callable"), &Engine::remove_print_handler);
+	ClassDB::bind_method(D_METHOD("add_error_handler", "callable"), &Engine::add_error_handler);
+	ClassDB::bind_method(D_METHOD("remove_error_handler", "callable"), &Engine::remove_error_handler);
 
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "print_error_messages"), "set_print_error_messages", "is_printing_error_messages");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "print_to_stdout"), "set_print_to_stdout", "is_printing_to_stdout");

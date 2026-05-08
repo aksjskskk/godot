@@ -36,6 +36,7 @@
 #include "core/io/resource_saver.h"
 #include "core/object/class_db.h"
 #include "core/object/script_backtrace.h"
+#include "core/os/os.h"
 #include "core/os/semaphore.h"
 #include "core/os/thread.h"
 #include "core/templates/safe_refcount.h"
@@ -635,11 +636,36 @@ public:
 	void set_print_error_messages(bool p_enabled);
 	bool is_printing_error_messages() const;
 
+	struct PrintCallbackData {
+		Callable callable;
+		PrintHandlerList handler;
+	};
+
+	struct ErrorCallbackData {
+		Callable callable;
+		ErrorHandlerList handler;
+	};
+
+	Vector<PrintCallbackData *> print_callback_list;
+	Vector<ErrorCallbackData *> error_callback_list;
+
+	static void _print_callback(void *p_self, const String &p_string, bool p_error, bool p_rich);
+	static void _error_callback(void *p_self, const char *p_func, const char *p_file,
+			int p_line, const char *p_error, const char *p_errorexp,
+			bool p_editor_notify, ErrorHandlerType p_type);
+
+public:
+	void add_print_handler(const Callable &p_callable);
+	void remove_print_handler(const Callable &p_callable);
+	void add_error_handler(const Callable &p_callable);
+	void remove_error_handler(const Callable &p_callable);
+
 #ifdef TOOLS_ENABLED
 	virtual void get_argument_options(const StringName &p_function, int p_idx, List<String> *r_options) const override;
 #endif
 
 	Engine() { singleton = this; }
+	~Engine();
 };
 
 class EngineDebugger : public Object {
