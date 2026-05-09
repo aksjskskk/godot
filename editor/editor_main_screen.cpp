@@ -39,6 +39,43 @@
 #include "scene/gui/box_container.h"
 #include "scene/gui/button.h"
 
+void EditorMainScreen::_update_button_styles() {
+	MainScreenButtonStyle style = (MainScreenButtonStyle)(int)EDITOR_GET("interface/editor/main_screen_button_style");
+
+	for (int i = 0; i < buttons.size(); i++) {
+		Button *tb = buttons[i];
+		EditorPlugin *p_editor = editor_table[i];
+
+		switch (style) {
+			case MAIN_SCREEN_BUTTON_STYLE_ICON_AND_TEXT: {
+				tb->set_text(p_editor->get_plugin_name());
+				// Icon was already set; it is refreshed by NOTIFICATION_THEME_CHANGED.
+				// We only need to restore the text here.
+			} break;
+			case MAIN_SCREEN_BUTTON_STYLE_ICON_ONLY: {
+				tb->set_text("");
+				// Tooltip ensures the button is still identifiable without text.
+				tb->set_tooltip_text(p_editor->get_plugin_name());
+			} break;
+			case MAIN_SCREEN_BUTTON_STYLE_TEXT_ONLY: {
+				tb->set_text(p_editor->get_plugin_name());
+				tb->set_button_icon(Ref<Texture2D>());
+			} break;
+		}
+
+		// Always keep the tooltip set; it is especially important in icon-only mode
+		// but does no harm in the other modes.
+		if (style != MAIN_SCREEN_BUTTON_STYLE_ICON_ONLY) {
+			// Clear any previously forced tooltip so the default behaviour applies.
+			tb->set_tooltip_text("");
+		}
+	}
+}
+
+void EditorMainScreen::update_button_styles() {
+	_update_button_styles();
+}
+
 void EditorMainScreen::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_READY: {
@@ -62,15 +99,23 @@ void EditorMainScreen::_notification(int p_what) {
 			select(-1);
 		} break;
 		case NOTIFICATION_THEME_CHANGED: {
+			MainScreenButtonStyle style = (MainScreenButtonStyle)(int)EDITOR_GET("interface/editor/main_screen_button_style");
+
 			for (int i = 0; i < buttons.size(); i++) {
 				Button *tb = buttons[i];
 				EditorPlugin *p_editor = editor_table[i];
-				Ref<Texture2D> icon = p_editor->get_plugin_icon();
 
-				if (icon.is_valid()) {
+				// Refresh icon unconditionally; it may have changed due to a theme reload.
+				Ref<Texture2D> icon = p_editor->get_plugin_icon();
+				if (icon.is_null() && has_theme_icon(p_editor->get_plugin_name(), EditorStringName(EditorIcons))) {
+					icon = get_theme_icon(p_editor->get_plugin_name(), EditorStringName(EditorIcons));
+				}
+
+				if (style == MAIN_SCREEN_BUTTON_STYLE_TEXT_ONLY) {
+					// In text-only mode we never show an icon.
+					tb->set_button_icon(Ref<Texture2D>());
+				} else if (icon.is_valid()) {
 					tb->set_button_icon(icon);
-				} else if (has_theme_icon(p_editor->get_plugin_name(), EditorStringName(EditorIcons))) {
-					tb->set_button_icon(get_theme_icon(p_editor->get_plugin_name(), EditorStringName(EditorIcons)));
 				}
 			}
 		} break;
@@ -157,8 +202,10 @@ void EditorMainScreen::select_prev() {
 void EditorMainScreen::select_by_name(const String &p_name) {
 	ERR_FAIL_COND(p_name.is_empty());
 
+	// Match against the node name (set_name), which always holds the plugin name
+	// regardless of whether the button text has been cleared by icon-only mode.
 	for (int i = 0; i < buttons.size(); i++) {
-		if (buttons[i]->get_text() == p_name) {
+		if (buttons[i]->get_name() == p_name) {
 			select(i);
 			return;
 		}
@@ -241,13 +288,14 @@ bool EditorMainScreen::can_auto_switch_screens() const {
 		return true;
 	}
 	// Only allow auto-switching if the selected button is to the left of the Script button.
+	// Use the node name instead of button text so this works in icon-only mode.
 	for (int i = 0; i < button_hb->get_child_count(); i++) {
 		Button *button = Object::cast_to<Button>(button_hb->get_child(i));
-		if (button->get_text() == "Script") {
+		if (button->get_name() == "Script") {
 			// Selected button is at or after the Script button.
 			return false;
 		}
-		if (button->get_text() == selected_plugin->get_plugin_name()) {
+		if (button->get_name() == selected_plugin->get_plugin_name()) {
 			// Selected button is before the Script button.
 			return true;
 		}
@@ -263,6 +311,9 @@ void EditorMainScreen::add_main_plugin(EditorPlugin *p_editor) {
 	Button *tb = memnew(Button);
 	tb->set_toggle_mode(true);
 	tb->set_theme_type_variation("MainScreenButton");
+	// set_name stores the canonical plugin name independently of display text.
+	// This is used by select_by_name() and can_auto_switch_screens() so those
+	// functions remain correct even when button text is cleared in icon-only mode.
 	tb->set_name(p_editor->get_plugin_name());
 	tb->set_text(p_editor->get_plugin_name());
 
@@ -287,13 +338,16 @@ void EditorMainScreen::add_main_plugin(EditorPlugin *p_editor) {
 	button_hb->add_child(tb);
 	editor_table.push_back(p_editor);
 	main_editor_plugins.insert(p_editor->get_plugin_name(), p_editor);
+
+	// Apply the current style to the newly added button.
+	_update_button_styles();
 }
 
 void EditorMainScreen::remove_main_plugin(EditorPlugin *p_editor) {
 	// Remove the main editor button and update the bindings of
 	// all buttons behind it to point to the correct main window.
 	for (int i = buttons.size() - 1; i >= 0; i--) {
-		if (p_editor->get_plugin_name() == buttons[i]->get_text()) {
+		if (p_editor->get_plugin_name() == buttons[i]->get_name()) {
 			if (buttons[i]->is_pressed()) {
 				select(EDITOR_SCRIPT);
 			}

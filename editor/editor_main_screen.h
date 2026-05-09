@@ -50,6 +50,13 @@ public:
 		EDITOR_ASSETLIB,
 	};
 
+	// Mirrors the style used by dock tab style settings.
+	enum MainScreenButtonStyle {
+		MAIN_SCREEN_BUTTON_STYLE_ICON_AND_TEXT,
+		MAIN_SCREEN_BUTTON_STYLE_ICON_ONLY,
+		MAIN_SCREEN_BUTTON_STYLE_TEXT_ONLY,
+	};
+
 private:
 	VBoxContainer *main_screen_vbox = nullptr;
 	EditorPlugin *selected_plugin = nullptr;
@@ -60,6 +67,9 @@ private:
 	HashMap<String, EditorPlugin *> main_editor_plugins;
 
 	int _get_current_main_editor() const;
+
+	// Applies the current button style setting to all buttons.
+	void _update_button_styles();
 
 protected:
 	void _notification(int p_what);
@@ -87,6 +97,9 @@ public:
 
 	void add_main_plugin(EditorPlugin *p_editor);
 	void remove_main_plugin(EditorPlugin *p_editor);
+
+	// Called from EditorNode when interface/editor/main_screen_button_style changes.
+	void update_button_styles();
 
 	EditorMainScreen();
 };
