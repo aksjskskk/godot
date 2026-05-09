@@ -757,6 +757,7 @@ void EditorNode::_update_theme(bool p_skip_creation) {
 	default_thumbnail->set_image(thumbnail_icon->get_image());
 
 	editor_dock_manager->update_tab_styles();
+	editor_main_screen->update_button_styles();
 	editor_dock_manager->update_docks_menu();
 	editor_dock_manager->set_tab_icon_max_width(theme->get_constant(SNAME("class_icon_size"), EditorStringName(Editor)));
 #ifdef ANDROID_ENABLED
@@ -1122,6 +1123,10 @@ void EditorNode::_notification(int p_what) {
 
 			if (EditorSettings::get_singleton()->check_changed_settings_in_group("interface/editor/docks")) {
 				editor_dock_manager->update_tab_styles();
+			}
+
+			if (EditorSettings::get_singleton()->check_changed_settings_in_group("interface/editor/main_screen_button_style")) {
+				editor_main_screen->update_button_styles();
 			}
 
 			if (EditorSettings::get_singleton()->check_changed_settings_in_group("interface/scene_tabs")) {
