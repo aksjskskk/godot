@@ -1111,7 +1111,9 @@ void SkyRD::setup_sky(const RenderDataRD *p_render_data, const Size2i p_screen_s
 		if (sky_scene_state.ubo.directional_light_count != sky_scene_state.last_frame_directional_light_count) {
 			light_data_dirty = true;
 			for (uint32_t i = sky_scene_state.ubo.directional_light_count; i < sky_scene_state.max_directional_lights; i++) {
+				sky_scene_state.directional_lights[i] = {};
 				sky_scene_state.directional_lights[i].enabled = false;
+				sky_scene_state.last_frame_directional_lights[i] = {};
 				sky_scene_state.last_frame_directional_lights[i].enabled = false;
 			}
 		}
@@ -1223,6 +1225,7 @@ void SkyRD::setup_sky(const RenderDataRD *p_render_data, const Size2i p_screen_s
 
 	sky_scene_state.ubo.fog_sky_affect = RendererSceneRenderRD::get_singleton()->environment_get_fog_sky_affect(p_render_data->environment);
 	sky_scene_state.ubo.volumetric_fog_sky_affect = RendererSceneRenderRD::get_singleton()->environment_get_volumetric_fog_sky_affect(p_render_data->environment);
+	sky_scene_state.ubo.fog_use_legacy_blending = RendererSceneRenderRD::get_singleton()->fog_use_legacy_blending_get();
 
 	RD::get_singleton()->buffer_update(sky_scene_state.uniform_buffer, 0, sizeof(SkySceneState::UBO), &sky_scene_state.ubo);
 }

@@ -143,6 +143,9 @@ void ProjectManager::_notification(int p_what) {
 			}
 			_update_list_placeholder();
 		} break;
+		case NOTIFICATION_RESIZED: {
+			project_list->resize_project_titles();
+		} break;
 	}
 }
 
@@ -199,7 +202,7 @@ void ProjectManager::_update_size_limits() {
 		// Limit popup menus to prevent unusably long lists.
 		// We try to set it to half the screen resolution, but no smaller than the minimum window size.
 		Size2 half_screen_rect = (screen_rect.size * EDSCALE) / 2;
-		Size2 maximum_popup_size = MAX(half_screen_rect, minimum_size);
+		Size2 maximum_popup_size = half_screen_rect.max(minimum_size);
 		quick_settings_dialog->update_size_limits(maximum_popup_size);
 	}
 }
@@ -1568,6 +1571,7 @@ ProjectManager::ProjectManager() {
 
 			filter_option = memnew(OptionButton);
 			filter_option->set_clip_text(true);
+			filter_option->set_fit_to_longest_item(false);
 			filter_option->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 			filter_option->set_stretch_ratio(0.3);
 			filter_option->set_accessibility_name(TTRC("Sort:"));

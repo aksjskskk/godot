@@ -368,7 +368,7 @@ void EditorInterface::make_scene_preview(const String &p_path, Node *p_scene, in
 	}
 
 	EditorResourcePreview::get_singleton()->check_for_invalidation(p_path);
-	EditorFileSystem::get_singleton()->emit_signal(SNAME("filesystem_changed"));
+	EditorFileSystem::get_singleton()->filesystem_changed();
 }
 
 void EditorInterface::add_root_node(Node *p_node) {
@@ -700,7 +700,7 @@ void EditorInterface::open_scene_from_path(const String &scene_path, bool p_set_
 	if (EditorNode::get_singleton()->is_changing_scene()) {
 		return;
 	}
-	EditorNode::get_singleton()->load_scene(scene_path, false, p_set_inherited);
+	EditorNode::get_singleton()->open_scene(scene_path, false, p_set_inherited);
 }
 
 void EditorInterface::reload_scene_from_path(const String &scene_path) {

@@ -118,6 +118,9 @@ private:
 	Vector<Vector3> _get_brush_collision_faces();
 #endif // PHYSICS_3D_DISABLED
 
+	void _build_surfaces_smoothed(CSGBrush *p_brush, Vector<ShapeUpdateSurface> &r_surfaces, Vector<int> &r_face_count);
+	void _build_surfaces_default(CSGBrush *p_brush, Vector<ShapeUpdateSurface> &r_surfaces, Vector<int> &r_face_count);
+
 protected:
 	void _notification(int p_what);
 	virtual CSGBrush *_build_brush() = 0;
@@ -142,6 +145,7 @@ public:
 
 	virtual AABB get_aabb() const override;
 
+#ifndef PHYSICS_3D_DISABLED
 	void set_use_collision(bool p_enable);
 	bool is_using_collision() const;
 
@@ -161,6 +165,7 @@ public:
 
 	void set_collision_priority(real_t p_priority);
 	real_t get_collision_priority() const;
+#endif // PHYSICS_3D_DISABLED
 
 	void set_autosmooth(bool p_smooth);
 	bool is_autosmooth() const;

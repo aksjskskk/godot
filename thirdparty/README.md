@@ -8,7 +8,7 @@ readability.
 ## accesskit
 
 - Upstream: https://github.com/AccessKit/accesskit-c
-- Version: 0.21.2 (72460cd52d1b24492393cdf54a6f19d2fd63e258, 2026)
+- Version: 0.22.3 (826d672661f9453c8b269ab3946dbcbae6300555, 2026)
 - License: MIT
 
 Files extracted from upstream source:
@@ -203,7 +203,7 @@ Patches:
 ## dr_libs
 
 - Upstream: https://github.com/mackron/dr_libs
-- Version: mp3-0.7.2 (547c211a87a06a42bf62c1366616aa14b57dd429, 2025)
+- Version: mp3-0.7.3 (5690d4671d7ad07ae6021756d7222eb159745f06, 2026)
 - License: Public Domain or Unlicense or MIT-0
 
 Files extracted from upstream source:
@@ -608,7 +608,7 @@ Files extracted from upstream source:
 ## libpng
 
 - Upstream: http://libpng.org/pub/png/libpng.html
-- Version: 1.6.55 (c3e304954a9cfd154bc0dfbfea2b01cd61d6546d, 2026)
+- Version: 1.6.58 (3061454d980de7d53608f594194cfac722721d2a, 2026)
 - License: libpng/zlib
 
 Files extracted from upstream source:
@@ -683,7 +683,7 @@ File extracted from upstream source:
 ## mbedtls
 
 - Upstream: https://github.com/Mbed-TLS/mbedtls
-- Version: 3.6.5 (e185d7fd85499c8ce5ca2a54f5cf8fe7dbe3f8df, 2025)
+- Version: 3.6.7 (068ff080b369adfac81509f9b57b2afabaf82dc5, 2026)
 - License: Apache 2.0
 
 File extracted from upstream release tarball:
@@ -720,7 +720,7 @@ Update instructions:
 ## meshoptimizer
 
 - Upstream: https://github.com/zeux/meshoptimizer
-- Version: 1.1 (dc9d09ed83e1004aef47a1c3c597e0ec64848a37, 2026)
+- Version: 1.1.1 (b22872835dbabc56a6e4a366ea9917f62b7daf1a, 2026)
 - License: MIT
 
 Files extracted from upstream repository:
@@ -952,7 +952,7 @@ Files extracted from upstream source:
 ## re-spirv
 
 - Upstream: https://github.com/renderbag/re-spirv
-- Version: git (c1853b0221cd43866b792406f55c4ab10a0b4503, 2026)
+- Version: git (29a77fca357567d00aa37b8ffde19c19cfe477c4, 2026)
 - License: MIT
 
 Files extracted from upstream source:
@@ -1018,6 +1018,8 @@ Patches:
 - `0005-fix-libudev-dbus.patch` ([GH-108373](https://github.com/godotengine/godot/pull/108373))
 - `0006-fix-cs-environ.patch` ([GH-109283](https://github.com/godotengine/godot/pull/109283))
 - `0007-shield-duplicate-macos.patch` ([GH-115510](https://github.com/godotengine/godot/pull/115510))
+- `0008-fix-linux-joycon-serial-num.patch` ([GH-113873](https://github.com/godotengine/godot/pull/113873))
+- `0009-update-device-blocklist.patch` ([GH-119403](https://github.com/godotengine/godot/pull/119403))
 
 
 ## spirv-cross

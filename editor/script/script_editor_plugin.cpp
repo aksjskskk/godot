@@ -1714,6 +1714,7 @@ struct _ScriptEditorItemData {
 	bool used = false;
 	int category = 0;
 	Node *ref = nullptr;
+	String path;
 
 	bool operator<(const _ScriptEditorItemData &id) const {
 		if (category == id.category) {
@@ -1921,6 +1922,7 @@ void ScriptEditor::_update_script_names() {
 
 			_ScriptEditorItemData sd;
 			sd.icon = icon;
+			sd.path = path;
 			sd.name = name;
 			sd.tooltip = saved ? path : TTR("Unsaved file.");
 			sd.index = i;
@@ -1973,6 +1975,7 @@ void ScriptEditor::_update_script_names() {
 
 			_ScriptEditorItemData sd;
 			sd.icon = icon;
+			sd.path = eh->get_class().unquote();
 			sd.name = name;
 			sd.sort_key = name.to_lower();
 			sd.tooltip = tooltip;
@@ -2002,7 +2005,7 @@ void ScriptEditor::_update_script_names() {
 		}
 
 		disambiguated_script_names.append(name);
-		full_script_paths.append(sedata[j].tooltip);
+		full_script_paths.append(sedata[j].path);
 	}
 
 	EditorNode::disambiguate_filenames(full_script_paths, disambiguated_script_names);
@@ -3211,6 +3214,8 @@ void ScriptEditor::set_window_layout(Ref<ConfigFile> p_layout) {
 	HashSet<String> loaded_scripts;
 	List<String> extensions = _get_recognized_extensions();
 
+	_set_script_zoom_factor(p_layout->get_value("ScriptEditor", "zoom_factor", 1.0f));
+
 	for (const Variant &v : scripts) {
 		String path = v;
 
@@ -3305,8 +3310,6 @@ void ScriptEditor::set_window_layout(Ref<ConfigFile> p_layout) {
 			EditorDebuggerNode::get_singleton()->set_breakpoint(E, (int)breakpoint + 1, true);
 		}
 	}
-
-	_set_script_zoom_factor(p_layout->get_value("ScriptEditor", "zoom_factor", 1.0f));
 
 	restoring_layout = false;
 
@@ -3695,7 +3698,7 @@ void ScriptEditor::_on_find_in_files_result_selected(const String &fpath, int li
 				scan_line--;
 			}
 
-			EditorNode::get_singleton()->load_scene(fpath);
+			EditorNode::get_singleton()->open_scene(fpath);
 			if (!script_id.is_empty()) {
 				Ref<Script> scr = ResourceLoader::load(fpath + "::" + script_id, "Script");
 				if (scr.is_valid()) {

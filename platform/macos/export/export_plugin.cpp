@@ -490,8 +490,8 @@ void EditorExportPlatformMacOS::get_export_options(List<ExportOption> *r_options
 	r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, "application/version", PROPERTY_HINT_PLACEHOLDER_TEXT, "Leave empty to use project version"), ""));
 	r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, "application/copyright"), ""));
 	r_options->push_back(ExportOption(PropertyInfo(Variant::DICTIONARY, "application/copyright_localized", PROPERTY_HINT_LOCALIZABLE_STRING), Dictionary()));
-	r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, "application/min_macos_version_x86_64"), "10.12"));
-	r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, "application/min_macos_version_arm64"), "11.00"));
+	r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, "application/min_macos_version_x86_64"), "11.00"));
+	r_options->push_back(ExportOption(PropertyInfo(Variant::STRING, "application/min_macos_version_arm64"), "13.00"));
 	r_options->push_back(ExportOption(PropertyInfo(Variant::INT, "application/export_angle", PROPERTY_HINT_ENUM, "Auto,Yes,No"), 0, true));
 	r_options->push_back(ExportOption(PropertyInfo(Variant::BOOL, "display/high_res"), true));
 
@@ -1623,8 +1623,8 @@ Error EditorExportPlatformMacOS::_export_debug_script(const Ref<EditorExportPres
 	return OK;
 }
 
-Error EditorExportPlatformMacOS::export_project(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, BitField<EditorExportPlatform::DebugFlags> p_flags) {
-	ExportNotifier notifier(*this, p_preset, p_debug, p_path, p_flags);
+Error EditorExportPlatformMacOS::export_project(const Ref<EditorExportPreset> &p_preset, bool p_debug, const String &p_path, BitField<EditorExportPlatform::DebugFlags> p_flags, bool p_notify) {
+	ExportNotifier notifier(*this, p_preset, p_debug, p_path, p_flags, p_notify);
 
 	const String base_dir = p_path.get_base_dir();
 

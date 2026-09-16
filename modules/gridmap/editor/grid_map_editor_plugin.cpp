@@ -60,14 +60,6 @@
 #include "scene/main/window.h"
 #include "servers/rendering/rendering_server.h"
 
-void GridMapEditor::_configure() {
-	if (!node) {
-		return;
-	}
-
-	update_grid();
-}
-
 void GridMapEditor::_menu_option(int p_option) {
 	switch (p_option) {
 		case MENU_OPTION_PREV_LEVEL: {
@@ -1235,6 +1227,9 @@ void GridMapEditor::edit(GridMap *p_gridmap) {
 		return;
 	}
 
+	// Prevent the cursor from being at an incorrect position before any inputs happen.
+	cursor_origin = (Vector3(cursor_gridpos) + Vector3(0.5 * node->get_center_x(), 0.5 * node->get_center_y(), 0.5 * node->get_center_z())) * node->get_cell_size();
+
 	update_palette();
 	_update_cursor_instance();
 
@@ -1253,8 +1248,7 @@ void GridMapEditor::update_grid() {
 
 	grid_ofs[edit_axis] = edit_floor[edit_axis] * node->get_cell_size()[edit_axis];
 
-	// If there's a valid tile cursor, offset the grid, otherwise move it back to the node.
-	edit_grid_xform.origin = cursor_instance.is_valid() ? grid_ofs : Vector3();
+	edit_grid_xform.origin = grid_ofs;
 	edit_grid_xform.basis = Basis();
 
 	for (int i = 0; i < 3; i++) {
@@ -1338,7 +1332,7 @@ void GridMapEditor::_update_theme() {
 
 void GridMapEditor::_notification(int p_what) {
 	switch (p_what) {
-		case NOTIFICATION_ENTER_TREE: {
+		case NOTIFICATION_READY: {
 			const RID scenario = get_tree()->get_root()->get_world_3d()->get_scenario();
 
 			for (int i = 0; i < 3; i++) {
@@ -1359,28 +1353,6 @@ void GridMapEditor::_notification(int p_what) {
 
 			_update_selection_transform();
 			_update_paste_indicator();
-			_update_theme();
-		} break;
-
-		case NOTIFICATION_EXIT_TREE: {
-			_cancel_pending_move();
-			_clear_clipboard_data();
-
-			for (int i = 0; i < 3; i++) {
-				RS::get_singleton()->free_rid(grid_instance[i]);
-				RS::get_singleton()->free_rid(grid[i]);
-				grid_instance[i] = RID();
-				grid[i] = RID();
-				RenderingServer::get_singleton()->free_rid(selection_level_instance[i]);
-			}
-
-			RenderingServer::get_singleton()->free_rid(cursor_instance);
-			RenderingServer::get_singleton()->free_rid(selection_instance);
-			RenderingServer::get_singleton()->free_rid(paste_instance);
-			cursor_instance = RID();
-			cursor_visible = false;
-			selection_instance = RID();
-			paste_instance = RID();
 		} break;
 
 		case NOTIFICATION_PROCESS: {
@@ -1442,27 +1414,29 @@ void GridMapEditor::_update_cursor_instance() {
 
 	const RID scenario = get_tree()->get_root()->get_world_3d()->get_scenario();
 
-	if (mode_buttons_group->get_pressed_button() == paint_mode_button) {
-		if (selected_palette >= 0 && node && node->get_mesh_library().is_valid()) {
-			Ref<Mesh> mesh = node->get_mesh_library()->get_item_mesh(selected_palette);
-			if (mesh.is_valid() && mesh->get_rid().is_valid()) {
-				cursor_instance = RenderingServer::get_singleton()->instance_create2(mesh->get_rid(), scenario);
-				RSE::ShadowCastingSetting cast_shadows = (RSE::ShadowCastingSetting)node->get_mesh_library()->get_item_mesh_cast_shadow(selected_palette);
-				RS::get_singleton()->instance_geometry_set_cast_shadows_setting(cursor_instance, cast_shadows);
+	if (mesh_library.is_valid()) {
+		if (mode_buttons_group->get_pressed_button() == paint_mode_button) {
+			if (selected_palette >= 0 && node && node->get_mesh_library().is_valid()) {
+				Ref<Mesh> mesh = node->get_mesh_library()->get_item_mesh(selected_palette);
+				if (mesh.is_valid() && mesh->get_rid().is_valid()) {
+					cursor_instance = RenderingServer::get_singleton()->instance_create2(mesh->get_rid(), scenario);
+					RSE::ShadowCastingSetting cast_shadows = (RSE::ShadowCastingSetting)node->get_mesh_library()->get_item_mesh_cast_shadow(selected_palette);
+					RS::get_singleton()->instance_geometry_set_cast_shadows_setting(cursor_instance, cast_shadows);
+				}
 			}
+		} else if (mode_buttons_group->get_pressed_button() == select_mode_button) {
+			cursor_inner_mat->set_albedo(Color(default_color, 0.2));
+			cursor_outer_mat->set_albedo(Color(default_color, 0.8));
+			cursor_instance = RenderingServer::get_singleton()->instance_create2(cursor_mesh, scenario);
+		} else if (mode_buttons_group->get_pressed_button() == erase_mode_button) {
+			cursor_inner_mat->set_albedo(Color(erase_color, 0.2));
+			cursor_outer_mat->set_albedo(Color(erase_color, 0.8));
+			cursor_instance = RenderingServer::get_singleton()->instance_create2(cursor_mesh, scenario);
+		} else if (mode_buttons_group->get_pressed_button() == pick_mode_button) {
+			cursor_inner_mat->set_albedo(Color(pick_color, 0.2));
+			cursor_outer_mat->set_albedo(Color(pick_color, 0.8));
+			cursor_instance = RenderingServer::get_singleton()->instance_create2(cursor_mesh, scenario);
 		}
-	} else if (mode_buttons_group->get_pressed_button() == select_mode_button) {
-		cursor_inner_mat->set_albedo(Color(default_color, 0.2));
-		cursor_outer_mat->set_albedo(Color(default_color, 0.8));
-		cursor_instance = RenderingServer::get_singleton()->instance_create2(cursor_mesh, scenario);
-	} else if (mode_buttons_group->get_pressed_button() == erase_mode_button) {
-		cursor_inner_mat->set_albedo(Color(erase_color, 0.2));
-		cursor_outer_mat->set_albedo(Color(erase_color, 0.8));
-		cursor_instance = RenderingServer::get_singleton()->instance_create2(cursor_mesh, scenario);
-	} else if (mode_buttons_group->get_pressed_button() == pick_mode_button) {
-		cursor_inner_mat->set_albedo(Color(pick_color, 0.2));
-		cursor_outer_mat->set_albedo(Color(pick_color, 0.8));
-		cursor_instance = RenderingServer::get_singleton()->instance_create2(cursor_mesh, scenario);
 	}
 
 	bool was_visible = cursor_visible;
@@ -1509,7 +1483,6 @@ void GridMapEditor::_floor_mouse_exited() {
 }
 
 void GridMapEditor::_bind_methods() {
-	ClassDB::bind_method("_configure", &GridMapEditor::_configure);
 	ClassDB::bind_method("_set_selection", &GridMapEditor::_set_selection);
 
 	ADD_SIGNAL(MethodInfo("overlay_update_requested"));

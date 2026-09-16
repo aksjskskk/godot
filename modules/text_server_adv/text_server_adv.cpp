@@ -1402,7 +1402,9 @@ bool TextServerAdvanced::_ensure_glyph(FontAdvanced *p_font_data, const Vector2i
 
 		FT_GlyphSlot slot = p_font_data->face->glyph;
 		bool fix_edge = (slot->format == FT_GLYPH_FORMAT_SVG); // Need to check before FT_Render_Glyph as it will change format to bitmap.
+#if HB_VERSION_ATLEAST(13, 0, 0)
 		bool from_bitmap = (slot->format == FT_GLYPH_FORMAT_BITMAP);
+#endif
 		if (!outline) {
 			if (p_font_data->msdf) {
 #ifdef MODULE_MSDFGEN_ENABLED
@@ -1459,7 +1461,7 @@ bool TextServerAdvanced::_ensure_glyph(FontAdvanced *p_font_data, const Vector2i
 							}
 						}
 					}
-					if (!is_rasterized && !fix_edge) {
+					if (!is_rasterized && !fix_edge && p_font_data->hinting == TextServer::HINTING_NONE) {
 						hb_raster_draw_reset(p_font_data->hb_mono);
 						hb_raster_draw_set_scale_factor(p_font_data->hb_mono, 64.0, 64.0);
 						if (Math::is_equal_approx(p_font_data->transform[0][0], (real_t)1.f) && Math::is_equal_approx(p_font_data->transform[1][0], (real_t)0.f) && Math::is_equal_approx(p_font_data->transform[1][1], (real_t)1.f)) {
@@ -1471,7 +1473,7 @@ bool TextServerAdvanced::_ensure_glyph(FontAdvanced *p_font_data, const Vector2i
 #if HB_VERSION_ATLEAST(14, 2, 0)
 						hb_raster_draw_glyph(p_font_data->hb_mono, fd->hb_handle, (hb_codepoint_t)glyph_index);
 #else
-						hb_raster_draw_glyph(p_font_data->hb_mono, fd->hb_handle, (hb_codepoint_t)glyph_index), 0, 0;
+						hb_raster_draw_glyph(p_font_data->hb_mono, fd->hb_handle, (hb_codepoint_t)glyph_index, 0, 0);
 #endif
 						hb_raster_image_t *img = hb_raster_draw_render(p_font_data->hb_mono);
 						hb_raster_extents_t ext = { 0, 0, 0, 0, 0 };

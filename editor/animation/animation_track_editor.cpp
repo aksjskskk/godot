@@ -1653,8 +1653,8 @@ void AnimationTimelineEdit::_notification(int p_what) {
 						float pos = get_value() + double(i) / scale;
 						float prev = get_value() + (double(i) - 1.0) / scale;
 
-						int frame = pos / step_size;
-						int prev_frame = prev / step_size;
+						int frame = int(Math::floor(pos / step_size));
+						int prev_frame = int(Math::floor(prev / step_size));
 
 						bool sub = Math::floor(prev) == Math::floor(pos);
 
@@ -3984,16 +3984,6 @@ void AnimationTrackEditGroup::gui_input(const Ref<InputEvent> &p_event) {
 			bool current_group_folded = !editor->get_current_animation()->editor_is_group_folded(node_name);
 			editor->get_current_animation()->editor_set_group_folded(node_name, current_group_folded);
 
-			if (!editor->get_current_animation()->get_path().is_resource_file()) {
-				EditorNode::get_editor_folding().save_scene_folding(
-						EditorNode::get_singleton()->get_edited_scene(),
-						EditorNode::get_singleton()->get_edited_scene()->get_scene_file_path());
-			} else {
-				EditorNode::get_editor_folding().save_resource_folding(
-						editor->get_current_animation(),
-						editor->get_current_animation()->get_path());
-			}
-
 			for (AnimationTrackEdit *i : track_edits) {
 				i->set_visible(!current_group_folded);
 			}
@@ -4133,19 +4123,13 @@ void AnimationTrackEditor::set_animation(const Ref<Animation> &p_anim, bool p_re
 			}
 		}
 
-		if (bezier_edit->is_visible()) {
+		if (bezier_mc->is_visible()) {
 			for (int i = 0; i < animation->get_track_count(); ++i) {
 				if (animation->track_get_type(i) == Animation::TrackType::TYPE_BEZIER) {
 					_bezier_edit(i);
 					break;
 				}
 			}
-		}
-
-		if (animation->get_path().is_resource_file()) {
-			EditorNode::get_editor_folding().load_resource_folding(
-					animation,
-					animation->get_path());
 		}
 	} else {
 		hscroll->hide();
@@ -4178,7 +4162,7 @@ void AnimationTrackEditor::_check_bezier_exist() {
 	if (is_exist) {
 		bezier_edit_icon->set_disabled(false);
 	} else {
-		if (bezier_edit->is_visible()) {
+		if (bezier_mc->is_visible()) {
 			_cancel_bezier_edit();
 		}
 		bezier_edit_icon->set_disabled(true);
@@ -5180,7 +5164,7 @@ void AnimationTrackEditor::resolve_insertion_offset(float &r_offset) const {
 }
 
 bool AnimationTrackEditor::is_bezier_editor_active() const {
-	return bezier_edit->is_visible();
+	return bezier_mc->is_visible();
 }
 
 bool AnimationTrackEditor::can_add_reset_key() const {
@@ -6537,7 +6521,7 @@ void AnimationTrackEditor::_scroll_input(const Ref<InputEvent> &p_event) {
 }
 
 void AnimationTrackEditor::_toggle_bezier_edit() {
-	if (bezier_edit->is_visible()) {
+	if (bezier_mc->is_visible()) {
 		_cancel_bezier_edit();
 	} else {
 		int track_count = animation->get_track_count();
@@ -6602,7 +6586,7 @@ void AnimationTrackEditor::_zoom_callback(float p_zoom_factor, Vector2 p_origin,
 }
 
 void AnimationTrackEditor::_cancel_bezier_edit() {
-	bezier_edit->hide();
+	bezier_mc->hide();
 	box_selection_container->show();
 	bezier_edit_icon->set_pressed(false);
 	auto_fit->show();
@@ -6614,7 +6598,7 @@ void AnimationTrackEditor::_bezier_edit(int p_for_track) {
 	bezier_edit->set_root(root);
 	bezier_edit->set_animation_and_track(animation, p_for_track, read_only);
 	box_selection_container->hide();
-	bezier_edit->show();
+	bezier_mc->show();
 	auto_fit->hide();
 	auto_fit_bezier->show();
 	// Search everything within the track and curve - edit it.
@@ -7440,21 +7424,21 @@ void AnimationTrackEditor::_edit_menu_pressed(int p_option) {
 		} break;
 
 		case EDIT_DUPLICATE_SELECTED_KEYS: {
-			if (bezier_edit->is_visible()) {
+			if (bezier_mc->is_visible()) {
 				bezier_edit->duplicate_selected_keys(-1.0, false);
 				break;
 			}
 			_anim_duplicate_keys(-1.0, false, -1.0);
 		} break;
 		case EDIT_CUT_KEYS: {
-			if (bezier_edit->is_visible()) {
+			if (bezier_mc->is_visible()) {
 				bezier_edit->copy_selected_keys(true);
 				break;
 			}
 			_anim_copy_keys(true);
 		} break;
 		case EDIT_COPY_KEYS: {
-			if (bezier_edit->is_visible()) {
+			if (bezier_mc->is_visible()) {
 				bezier_edit->copy_selected_keys(false);
 				break;
 			}
@@ -7563,7 +7547,7 @@ void AnimationTrackEditor::_edit_menu_pressed(int p_option) {
 
 		} break;
 		case EDIT_DELETE_SELECTION: {
-			if (bezier_edit->is_visible()) {
+			if (bezier_mc->is_visible()) {
 				bezier_edit->delete_selection();
 				break;
 			}
@@ -7908,7 +7892,7 @@ void AnimationTrackEditor::_auto_fit() {
 void AnimationTrackEditor::_auto_fit_bezier() {
 	timeline->auto_fit();
 
-	if (bezier_edit->is_visible()) {
+	if (bezier_mc->is_visible()) {
 		bezier_edit->auto_fit_vertically();
 	}
 }
@@ -7990,6 +7974,8 @@ void AnimationTrackEditor::_update_timeline_margins() {
 
 	timeline_mc->add_theme_constant_override(SNAME("margin_left"), margin_left);
 	timeline_mc->add_theme_constant_override(SNAME("margin_right"), margin_right);
+
+	bezier_mc->add_theme_constant_override(SNAME("margin_left"), margin_left);
 }
 
 void AnimationTrackEditor::_add_animation_player() {
@@ -8192,12 +8178,16 @@ AnimationTrackEditor::AnimationTrackEditor() {
 	box_selection_container->set_clip_contents(true);
 	timeline_vbox->add_child(box_selection_container);
 
+	bezier_mc = memnew(MarginContainer);
+	bezier_mc->set_v_size_flags(SIZE_EXPAND_FILL);
+	bezier_mc->set_theme_type_variation("AnimationBezierMargin");
+	timeline_vbox->add_child(bezier_mc);
+	bezier_mc->hide();
+
 	bezier_edit = memnew(AnimationBezierTrackEdit);
-	timeline_vbox->add_child(bezier_edit);
+	bezier_mc->add_child(bezier_edit);
 	bezier_edit->set_editor(this);
 	bezier_edit->set_timeline(timeline);
-	bezier_edit->hide();
-	bezier_edit->set_v_size_flags(SIZE_EXPAND_FILL);
 	bezier_edit->connect("timeline_changed", callable_mp(this, &AnimationTrackEditor::_timeline_changed));
 
 	marker_edit = memnew(AnimationMarkerEdit);

@@ -575,8 +575,11 @@ void Main::print_help(const char *p_binary) {
 #if defined(OVERRIDE_PATH_ENABLED)
 	print_help_option("--path <directory>", "Path to a project (<directory> must contain a \"project.godot\" file).\n", CLI_OPTION_AVAILABILITY_TEMPLATE_UNSAFE);
 	print_help_option("--scene <path>", "Path or UID of a scene in the project that should be started.\n", CLI_OPTION_AVAILABILITY_TEMPLATE_UNSAFE);
-	print_help_option("--main-pack <file>", "Path to a pack (.pck) file to load.\n", CLI_OPTION_AVAILABILITY_TEMPLATE_UNSAFE);
 #endif // defined(OVERRIDE_PATH_ENABLED)
+#if defined(OVERRIDE_PATH_ENABLED) || defined(ANDROID_ENABLED) || defined(WEB_ENABLED)
+	print_help_option("--main-pack <file>", "Path to a pack (.pck) file to load.\n", CLI_OPTION_AVAILABILITY_TEMPLATE_UNSAFE);
+#endif // defined(OVERRIDE_PATH_ENABLED) || defined(ANDROID_ENABLED) || defined(WEB_ENABLED)
+
 #ifdef DISABLE_DEPRECATED
 	print_help_option("--render-thread <mode>", "Render thread mode (\"safe\", \"separate\").\n");
 #else
@@ -617,7 +620,7 @@ void Main::print_help(const char *p_binary) {
 
 	print_help_option("--rendering-method <renderer>", "Renderer name. Requires driver support.\n");
 	print_help_option("--rendering-driver <driver>", "Rendering driver (depends on display driver).\n");
-	print_help_option("--gpu-index <device_index>", "Use a specific GPU (run with --verbose to get a list of available devices).\n");
+	print_help_option("--gpu-index <device_index>", "Use a specific GPU (only available on the Forward+/Mobile renderers; run with --verbose to get a list of available devices).\n");
 	print_help_option("--text-driver <driver>", "Text driver (used for font rendering, bidirectional support and shaping).\n");
 	print_help_option("--tablet-driver <driver>", "Pen tablet input driver.\n");
 	print_help_option("--headless", "Enable headless mode (--display-driver headless --audio-driver Dummy). Useful for servers and with --script.\n");
@@ -742,6 +745,7 @@ void Main::test_cleanup() {}
 // are initialized here. This also combines `Main::setup2()` initialization.
 Error Main::test_setup() {
 	Thread::make_main_thread();
+
 	set_current_thread_safe_for_nodes(true);
 
 	OS::get_singleton()->initialize();
@@ -881,6 +885,8 @@ Error Main::test_setup() {
 void Main::test_cleanup() {
 	ERR_FAIL_COND(!_start_success);
 
+	Thread::make_main_thread();
+
 	// Printing in the usual way can become problematic during/after cleanup.
 	CoreGlobals::print_ready = false;
 
@@ -968,6 +974,8 @@ void Main::test_cleanup() {
 	unregister_core_types();
 
 	OS::get_singleton()->finalize_core();
+
+	Thread::release_main_thread();
 }
 #endif // TESTS_ENABLED
 
@@ -1854,10 +1862,28 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 				goto error;
 			}
 		} else if (arg == "--main-pack") {
-#if defined(OVERRIDE_PATH_ENABLED) || defined(WEB_ENABLED) // Note: main-pack is always used on web and can't be disabled.
+// Note: main-pack is always used on web and can't be disabled.
+// Note: main-pack can be used on Android so long as it's located within the 'assets' directory which is in the executable.
+#if defined(OVERRIDE_PATH_ENABLED) || defined(WEB_ENABLED) || defined(ANDROID_ENABLED)
 			if (N) {
 				main_pack = N->get();
 				N = N->next();
+
+#if defined(ANDROID_ENABLED) && !defined(OVERRIDE_PATH_ENABLED)
+				// Validate that `main_pack` is located within the 'assets' directory.
+				Ref<FileAccess> main_pack_fa = FileAccess::create_for_path(main_pack);
+				if (main_pack_fa.is_valid()) {
+					if (main_pack_fa->get_access_type() != FileAccess::ACCESS_RESOURCES) {
+						ERR_PRINT(
+								"--main-pack is attempting to load from outside of the executable, but this Godot binary was compiled without support for path overrides. Aborting.\n"
+								"To be able to use it, use the `disable_path_overrides=no` SCons option when compiling Godot.\n");
+						goto error;
+					}
+				} else {
+					ERR_PRINT("Invalid path to main pack file, aborting.\n");
+					goto error;
+				}
+#endif // defined(ANDROID_ENABLED) && !defined(OVERRIDE_PATH_ENABLED)
 			} else {
 				OS::get_singleton()->print("Missing path to main pack file, aborting.\n");
 				goto error;
@@ -1867,7 +1893,7 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 					"`--main-pack` was specified on the command line, but this Godot binary was compiled without support for path overrides. Aborting.\n"
 					"To be able to use it, use the `disable_path_overrides=no` SCons option when compiling Godot.\n");
 			goto error;
-#endif // defined(OVERRIDE_PATH_ENABLED) || defined(WEB_ENABLED)
+#endif // defined(OVERRIDE_PATH_ENABLED) || defined(WEB_ENABLED) || defined(ANDROID_ENABLED)
 
 		} else if (arg == "-d" || arg == "--debug") {
 			debug_uri = "local://";
@@ -2898,9 +2924,6 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 
 	message_queue = memnew(MessageQueue);
 
-	Thread::release_main_thread(); // If setup2() is called from another thread, that one will become main thread, so preventively release this one.
-	set_current_thread_safe_for_nodes(false);
-
 #if defined(STEAMAPI_ENABLED)
 	if (editor || project_manager) {
 		steam_tracker = memnew(SteamTracker);
@@ -2982,6 +3005,8 @@ error:
 
 	OS::get_singleton()->finalize_core();
 	locale = String();
+
+	Thread::release_main_thread();
 
 	return exit_err;
 }
@@ -4712,7 +4737,7 @@ int Main::start() {
 #ifdef TOOLS_ENABLED
 			if (editor) {
 				if (!recovery_mode && (game_path != ResourceUID::ensure_path(String(GLOBAL_GET("application/run/main_scene"))) || !editor_node->has_scenes_in_session())) {
-					Error serr = editor_node->load_scene(local_game_path);
+					Error serr = editor_node->open_scene(local_game_path);
 					if (serr != OK) {
 						ERR_PRINT("Failed to load scene");
 					}
@@ -5189,6 +5214,8 @@ void Main::force_redraw() {
  * The order matters as some of those steps are linked with each other.
  */
 void Main::cleanup(bool p_force) {
+	Thread::make_main_thread();
+
 	GodotProfileZone("cleanup");
 	OS::get_singleton()->benchmark_begin_measure("Shutdown", "Main::Cleanup");
 	if (!p_force) {
@@ -5374,4 +5401,6 @@ void Main::cleanup(bool p_force) {
 	OS::get_singleton()->benchmark_dump();
 
 	OS::get_singleton()->finalize_core();
+
+	Thread::release_main_thread();
 }

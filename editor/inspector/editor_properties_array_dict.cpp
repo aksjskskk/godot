@@ -254,6 +254,22 @@ void EditorPropertyArray::initialize_array(Variant &p_array) {
 	}
 }
 
+void EditorPropertyArray::_update_slots_size() {
+	float name_size = 0;
+	for (Slot &slot : slots) {
+		if (name_size == 0) {
+			int max_index = (page_index + 1) * page_length - 1;
+			const String ms = String("M").repeat(itos(max_index).length());
+
+			Ref<Font> font = theme_cache.font;
+			int font_size = theme_cache.font_size;
+			int half_padding = theme_cache.padding / 2;
+			name_size = slots[0].reorder_button->get_minimum_size().x + theme_cache.horizontal_separation + half_padding + font->get_string_size(ms, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x;
+		}
+		slot.prop->set_name_fixed_size(name_size);
+	}
+}
+
 void EditorPropertyArray::_property_changed(const String &p_property, Variant p_value, const String &p_name, bool p_changing) {
 	if (!p_property.begins_with("indices")) {
 		return;
@@ -326,6 +342,7 @@ void EditorPropertyArray::_create_new_property_slot() {
 	reorder_button->connect(SNAME("button_down"), callable_mp(this, &EditorPropertyArray::_reorder_button_down).bind(idx));
 
 	hbox->add_child(prop);
+	prop->add_inline_control(reorder_button, INLINE_CONTROL_LEFT);
 
 	bool is_untyped_array = object->get_array().get_type() == Variant::ARRAY && subtype == Variant::NIL;
 
@@ -338,6 +355,7 @@ void EditorPropertyArray::_create_new_property_slot() {
 		edit_btn->set_disabled(is_read_only());
 		edit_btn->set_theme_type_variation(SNAME("EditorInspectorFlatButton"));
 		edit_btn->connect(SceneStringName(pressed), callable_mp(this, &EditorPropertyArray::_change_type).bind(edit_btn, idx));
+		prop->add_inline_control(edit_btn, INLINE_CONTROL_RIGHT);
 	} else {
 		remove_btn = memnew(Button);
 		remove_btn->set_accessibility_name(TTRC("Remove"));
@@ -345,6 +363,7 @@ void EditorPropertyArray::_create_new_property_slot() {
 		remove_btn->set_disabled(is_read_only());
 		remove_btn->set_theme_type_variation(SNAME("EditorInspectorFlatButton"));
 		remove_btn->connect(SceneStringName(pressed), callable_mp(this, &EditorPropertyArray::_remove_pressed).bind(idx));
+		prop->add_inline_control(remove_btn, INLINE_CONTROL_RIGHT);
 	}
 	property_vbox->add_child(hbox);
 
@@ -494,7 +513,6 @@ void EditorPropertyArray::update_property() {
 		paginator->update(page_index, max_page);
 		paginator->set_visible(max_page > 0);
 
-		float name_size = 0;
 		for (Slot &slot : slots) {
 			bool slot_visible = &slot != &reorder_slot && slot.index < size;
 			slot.container->set_visible(slot_visible);
@@ -553,16 +571,10 @@ void EditorPropertyArray::update_property() {
 				callable_mp(slot.prop, &EditorProperty::grab_focus).call_deferred(0);
 				changing_type_index = EditorPropertyArrayObject::NOT_CHANGING_TYPE;
 			}
-			if (name_size == 0) {
-				int max_index = (page_index + 1) * page_length - 1;
-				const String ms = String("M").repeat(itos(max_index).length());
-
-				Ref<Font> font = theme_cache.font;
-				int font_size = theme_cache.font_size;
-				name_size = slots[0].reorder_button->get_minimum_size().x + theme_cache.horizontal_separation + font->get_string_size(ms, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x;
-			}
-			slot.prop->set_name_fixed_size(name_size);
 			slot.prop->update_property();
+		}
+		if (is_inside_tree()) {
+			_update_slots_size();
 		}
 
 		updating = false;
@@ -801,6 +813,7 @@ void EditorPropertyArray::_notification(int p_what) {
 					slot.remove_button->set_button_icon(get_editor_theme_icon(SNAME("Remove")));
 				}
 			}
+			_update_slots_size();
 		} break;
 		case NOTIFICATION_DRAG_BEGIN: {
 			if (is_visible_in_tree()) {
@@ -1122,6 +1135,7 @@ void EditorPropertyDictionary::_create_new_property_slot(int p_idx) {
 		edit_btn->set_disabled(is_read_only());
 		edit_btn->set_theme_type_variation(SNAME("EditorInspectorFlatButton"));
 		edit_btn->connect(SceneStringName(pressed), callable_mp(this, &EditorPropertyDictionary::_change_type).bind(edit_btn, slots.size()));
+		prop->add_inline_control(edit_btn, INLINE_CONTROL_RIGHT);
 	} else if (p_idx >= 0) {
 		remove_btn = memnew(Button);
 		remove_btn->set_accessibility_name(TTRC("Remove"));
@@ -1129,6 +1143,7 @@ void EditorPropertyDictionary::_create_new_property_slot(int p_idx) {
 		remove_btn->set_disabled(is_read_only());
 		remove_btn->set_theme_type_variation(SNAME("EditorInspectorFlatButton"));
 		remove_btn->connect(SceneStringName(pressed), callable_mp(this, &EditorPropertyDictionary::_remove_pressed).bind(slots.size()));
+		prop->add_inline_control(remove_btn, INLINE_CONTROL_RIGHT);
 	}
 
 	if (add_panel) {
